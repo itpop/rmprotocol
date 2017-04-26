@@ -35,5 +35,5 @@
 -- used in response to a WM_DESTROY message.
 ----------------------------------------------------------------------------------------------------------------------*/
 void terminateSession() {
-	PostQuitMessage(0);
+    PostQuitMessage(0);
 }

@@ -3,9 +3,9 @@
 --
 -- DATE:            December 3, 2016
 --
--- DESIGNER:        Isaac Morneau
+-- DESIGNER:        Fred Yang
 --
--- PROGRAMMER:      Isaac Morneau
+-- PROGRAMMER:      Fred Yang
 --
 -- NOTES:
 -- This header file includes common macro definitions and function

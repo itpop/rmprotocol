@@ -18,5 +18,5 @@
 // function prototypes
 INT_PTR CALLBACK WndProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance,
-	               LPSTR lspszCmdParam, int nCmdShow);
+                    LPSTR lspszCmdParam, int nCmdShow);
 #endif

@@ -36,32 +36,16 @@ HANDLE Ev_Read_Thread_Finish = CreateEvent(NULL, TRUE, TRUE, 0);
 // ENQ in wait flag
 BOOL receivedENQinWait;
 
-/*------------------------------------------------------------------------------------------------------------------
---  FUNCTION:       initPort
---
---  DATE:			December 3, 2016
---
---	DESIGNER:		Fred Yang
---
---	PROGRAMMER:		Fred Yang
---
---  INTERFACE:      BOOL initPort();
---
---  RETURNS:        VOID
---
---  NOTES:
---	Initialize serial communication handle to allow overlapped communication
-----------------------------------------------------------------------------------------------------------------------*/
 VOID initPort()
 {
     try {
-	    errorCheck((hComm = CreateFile(lpszCommName, 
-		    GENERIC_READ | GENERIC_WRITE, 
-		    0,
-		    NULL, 
-		    OPEN_EXISTING, 
-		    FILE_FLAG_OVERLAPPED, // File overlapped flag to allow asynchrounous operations
-		    NULL)) == INVALID_HANDLE_VALUE ?
+        errorCheck((hComm = CreateFile(lpszCommName, 
+            GENERIC_READ | GENERIC_WRITE, 
+            0,
+            NULL, 
+            OPEN_EXISTING, 
+            FILE_FLAG_OVERLAPPED,
+            NULL)) == INVALID_HANDLE_VALUE ?
             ERR_INIT_COMM : NO_ERR);
     }
     catch (exception& e) {
@@ -69,26 +53,10 @@ VOID initPort()
     }
 }
 
-/*------------------------------------------------------------------------------------------------------------------
---  FUNCTION:       initRead
---
---  DATE:			December 3, 2016
---
---	DESIGNER:		Fred Yang
---
---	PROGRAMMER:		Fred Yang
---
---  INTERFACE:      VOID initRead()
---
---  RETURNS:        VOID
---
---  NOTES:
---	Initialize the read operation and reports any error if it occurs
-----------------------------------------------------------------------------------------------------------------------*/
 VOID initRead()
 {
     try {
-	    errorCheck((readThread = CreateThread(NULL, 0, readIdle, NULL , 0, &readThreadId)) 
+        errorCheck((readThread = CreateThread(NULL, 0, readIdle, NULL , 0, &readThreadId)) 
                     == NULL ? ERR_READ_THREAD : NO_ERR);
     }
     catch (exception& e) {
@@ -96,52 +64,34 @@ VOID initRead()
     }
 }
 
-/*------------------------------------------------------------------------------------------------------------------
---  FUNCTION:       readIdle
---
---  DATE:			December 3, 2016
---
---	DESIGNER:		Fred Yang
---
---	PROGRAMMER:		Fred Yang
---
---  INTERFACE:      DWORD WINAPI readIdle(LPVOID lpvoid)
---
---  RETURNS:        0 upon successful thread finish
---
---  NOTES:
---	Represents the idle state of the wireless protocol design. It waits until an ENQ is read from the serial
---  port. It sends an ACK back to the port and then waits for a packet to come back after. Lastly the thread
---  returns to the idle state and waits for ENQ to arrive again.
-----------------------------------------------------------------------------------------------------------------------*/
 DWORD WINAPI readIdle(LPVOID lpvoid)
-{	
+{
     try {
-	    while (1)
-	    {
-		    // If we got an ENQ already from the wait state, go directly to sending 
+        while (1)
+        {
+            // If we got an ENQ already from the wait state, go directly to sending 
             // an ACK to acknowledge line
-		    if (receivedENQinWait) {
-			    ResetEvent(Ev_Read_Thread_Finish);
-			    // Clear the flag
-			    receivedENQinWait = false;
-			    // Send ACK
-			    sendACK();
-			    // Now wait for the packet to come, and validate it
-			    waitForPacket();
-		    } 
-		    else
-		    {
-			    // Idle state waiting
-			    ResetEvent(Ev_Read_Thread_Finish);
+            if (receivedENQinWait) {
+                ResetEvent(Ev_Read_Thread_Finish);
+                // Clear the flag
+                receivedENQinWait = false;
+                // Send ACK
+                sendACK();
+                // Now wait for the packet to come, and validate it
+                waitForPacket();
+            } 
+            else
+            {
+                // Idle state waiting
+                ResetEvent(Ev_Read_Thread_Finish);
                 if (evaluateInput(readInput()))
-			    {
-				    sendACK();
-				    // Now we wait for the packet to come, and validate it
-				    waitForPacket();
-			    }
-		    }
-	    }
+                {
+                    sendACK();
+                    // Now we wait for the packet to come, and validate it
+                    waitForPacket();
+                }
+            }
+        }
     }
     catch (exception& e) {
         OutputDebugString(e.what());
@@ -150,22 +100,6 @@ DWORD WINAPI readIdle(LPVOID lpvoid)
 	return 0;
 }
 
-/*------------------------------------------------------------------------------------------------------------------
---  FUNCTION:       sendACK
---
---  DATE:			December 3, 2016
---
---	DESIGNER:		Fred Yang
---
---	PROGRAMMER:		Fred Yang
---
---  INTERFACE:      VOID sendACK()
---
---  RETURNS:        VOID
---
---  NOTES:
---  Sends an ACK to the serial port.
-----------------------------------------------------------------------------------------------------------------------*/
 VOID sendACK()
 {
     char c = ACK;
@@ -173,102 +107,52 @@ VOID sendACK()
     updateStats(++stats.acksReceived, IDC_SDATA4);
 }
 
-/*------------------------------------------------------------------------------------------------------------------
---  FUNCTION:       readInput
---
---  DATE:			December 3, 2016
---
---	DESIGNER:		Fred Yang
---
---	PROGRAMMER:		Fred Yang
---
---  INTERFACE:      LPSTR readInput()
---
---  RETURNS:        long pointer to the char that has been received from the port
---
---  NOTES:
---	Use event driven approach to wait for ENQ. Used only by the readIdle() thread. Also handles the mechanism
---	to exit the thread properly when performing WaitCommEvent()
-----------------------------------------------------------------------------------------------------------------------*/
 CHAR readInput()
 {
-	COMSTAT cs;
+    COMSTAT cs;
     char c = '\0';
-	OVERLAPPED ovRead = { NULL };
+    OVERLAPPED ovRead = { NULL };
 
     try {
-	    // Create overlapped event
-	    ovRead.hEvent = CreateEvent(NULL, FALSE, FALSE, EV_OVREAD);
-	    //	Set listener to a character
-	    errorCheck(!SetCommMask(hComm, EV_RXCHAR) ? ERR_COMMMASK : NO_ERR);
-	    DWORD read_byte, dwEvent, dwError;
-	    // Waits for EV_RXCHAR event to trigger
-	    if (WaitCommEvent(hComm, &dwEvent, NULL))
-	    {
-		    // Clear Comm Port
-		    ClearCommError(hComm, &dwError, &cs);
-		    if ((dwEvent & EV_RXCHAR) && cs.cbInQue)
-		    {
+        // Create overlapped event
+        ovRead.hEvent = CreateEvent(NULL, FALSE, FALSE, EV_OVREAD);
+        //	Set listener to a character
+        errorCheck(!SetCommMask(hComm, EV_RXCHAR) ? ERR_COMMMASK : NO_ERR);
+        DWORD read_byte, dwEvent, dwError;
+        // Waits for EV_RXCHAR event to trigger
+        if (WaitCommEvent(hComm, &dwEvent, NULL))
+        {
+            // Clear Comm Port
+            ClearCommError(hComm, &dwError, &cs);
+            if ((dwEvent & EV_RXCHAR) && cs.cbInQue)
+            {
                 if (!ReadFile(hComm, &c, sizeof(c), &read_byte, &ovRead))
-				    printMsg();
-		    }
-	    }
+                    printMsg();
+            }
+        }
 
-	    // If a event other than EV_RXCHAR has occured, which should be triggered by the 
+        // If a event other than EV_RXCHAR has occured, which should be triggered by the 
         // RETURN_COMM_EVENT macro.
-	    if (dwEvent == 0)
-		    // End the read thread
-		    ExitThread(readThreadId);
+        if (dwEvent == 0)
+            // End the read thread
+            ExitThread(readThreadId);
 
-	    // Discards all characters from the output and input buffer
-	    PurgeComm(hComm, PURGE_RXCLEAR | PURGE_TXCLEAR);
-	    CloseHandle(ovRead.hEvent);
+        // Discards all characters from the output and input buffer
+        PurgeComm(hComm, PURGE_RXCLEAR | PURGE_TXCLEAR);
+        CloseHandle(ovRead.hEvent);
     }
     catch (exception& e) {
         OutputDebugString(e.what());
     }
 
-	return c;
+    return c;
 }
 
-/*------------------------------------------------------------------------------------------------------------------
---  FUNCTION:       evaluateInput
---
---  DATE:			December 3, 2016
---
---	DESIGNER:		Fred Yang
---
---	PROGRAMMER:		Fred Yang
---
---  INTERFACE:      evaluateInput(CHAR c)
---					CHAR c - the character to be evaluated
---
---  RETURNS:        TRUE if c is an ENQ, false otherwise
---
---  NOTES:
---	Evaluate if we received an ENQ.
-----------------------------------------------------------------------------------------------------------------------*/
 BOOL evaluateInput(CHAR c)
 {
     return (c == ENQ);
 }
 
-/*------------------------------------------------------------------------------------------------------------------
---  FUNCTION:       waitForPacket
---
---  DATE:			December 3, 2016
---
---	DESIGNER:		Fred Yang
---
---	PROGRAMMER:		Fred Yang
---
---  INTERFACE:      VOID waitForPacket()
---
---  RETURNS:        VOID
---
---  NOTES:
---	Waiting for characters arrive at the serial port and attempt to parketize them into a packet
-----------------------------------------------------------------------------------------------------------------------*/
 VOID waitForPacket()
 {
     try {
@@ -319,32 +203,15 @@ VOID waitForPacket()
     }
 }
 
-/*------------------------------------------------------------------------------------------------------------------
---  FUNCTION:       validatePacket
---
---  DATE:			December 3, 2016
---
---	DESIGNER:		Fred Yang
---
---	PROGRAMMER:		Fred Yang
---
---  INTERFACE:      BOOL validatePacket(const char *packet)
---				    packet - char array to validate
---
---  RETURNS:       TRUE upon valid packet, FALSE otherwise
---
---  NOTES:
---	Validate packet, make sure the packet structure is correct and that the packet is in sync
-----------------------------------------------------------------------------------------------------------------------*/
 BOOL validatePacket(const char *packet)
 {
-	string message;
+    string message;
     string crcs;
 
     try {
         // first byte is SYN
         if (packet[0] == SYN)
-	    {
+        {
             for (size_t i = PACKET_DATA_INDEX; i <= PACKET_DATA_SIZE; i++)
             {
                 // NUL can not be the filler as the packets that contain NUL, NULL, or '\0' are simply
@@ -371,54 +238,20 @@ BOOL validatePacket(const char *packet)
                 updateStats(getBER(), IDC_SDATA6);
                 prev_crcs = crcs;
             }
-	    }
+        }
     }
     catch (exception& e) {
         OutputDebugString(e.what());
         return FALSE;
     }
 
-	return TRUE;
+    return TRUE;
 }
 
-/*------------------------------------------------------------------------------------------------------------------
---  FUNCTION:       getBER
---
---  DATE:			December 3, 2016
---
---	DESIGNER:		Fred Yang
---
---	PROGRAMMER:		Fred Yang
---
---  INTERFACE:      int getBER()
---
---  RETURNS:        returns Bit Error Rate
---
---  NOTES:
---	Calculate the Bit Error Rate (BER)
-----------------------------------------------------------------------------------------------------------------------*/
 int getBER() {
     return (int)(100 * stats.packetCorrupted / (stats.packetReceived + stats.packetCorrupted));
 }
 
-/*------------------------------------------------------------------------------------------------------------------
---  FUNCTION:       validateCheckSum
---
---  DATE:			December 3, 2016
---
---	DESIGNER:		Fred Yang
---
---	PROGRAMMER:		Fred Yang
---
---  INTERFACE:      BOOL validateCheckSum(string data, string crcs)
---				    string data - data to be calculated
---                  crcs - the base CRC to be compared
---
---  RETURNS:        TRUE if validated, FALSE otherwise
---
---  NOTES:
---	Validate checksum to avoid processing duplicated packets.
-----------------------------------------------------------------------------------------------------------------------*/
 BOOL validateCheckSum(string data, string crcs) {
     uint16_t crcRaw = calculateCRC16(data);
     string crcCheck = CRCtoString(crcRaw);
